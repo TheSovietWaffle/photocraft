@@ -746,6 +746,16 @@ fn hyphenated_postscript_style_suffix_keeps_weight_and_slant() {
     }
 }
 
+/// #10265: `Roman` in a PostScript name is a variable font's master, not part of its family, when
+/// only the shorter family is installed; an uninstalled family keeps its name for the warning.
+#[test]
+fn a_roman_master_resolves_to_its_installed_family() {
+    let mut db = fonts::FontDb::new();
+    let r = db.resolve_postscript("InterRoman-Bold");
+    assert_eq!((r.family.as_str(), r.weight, r.exact), ("Inter", 700, false));
+    assert_eq!(db.resolve_postscript("NoSuchFamilyRoman-Regular").family, "No Such Family Roman");
+}
+
 #[test]
 fn postscript_names() {
     let g = fonts::guess_from_postscript("MyriadPro-BoldIt");

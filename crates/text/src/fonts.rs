@@ -611,6 +611,14 @@ impl FontDb {
             {
                 g.family = f;
             }
+            // Photoshop names a variable font's default master `Roman`: JosefinSansRoman-Regular
+            // is the family Josefin Sans (#10265). A real family of that name was kept above.
+            if !self.has_family(&g.family)
+                && let Some(base) = g.family.strip_suffix(" Roman").map(str::to_string)
+                && self.has_family(&base)
+            {
+                g.family = base;
+            }
             g
         });
         self.ps_cache.insert(ps.to_string(), Some(r.clone()));
