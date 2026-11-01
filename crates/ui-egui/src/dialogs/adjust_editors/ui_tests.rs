@@ -560,6 +560,25 @@ fn gradient_map_strip_adds_selects_and_removes_stops_without_deleting_the_last_p
     assert_eq!(layer(&h).1, original, "keep two stops");
 }
 
+/// #10742: dragging a stop down off the strip removes it in one undo step, as the other gradient
+/// strips do, and the last two stops stay.
+#[test]
+fn gradient_map_stop_dragged_off_the_strip_is_deleted_keeping_the_last_pair() {
+    let mut h = app_harness("gradientMap", "rgb", 8);
+    let (_, original) = layer(&h);
+    let middle = map_handle(&h, 0.5);
+    click(&mut h, middle);
+    assert_eq!(map_stops(&layer(&h).1).len(), 3);
+    let steps = h.state().session.active().unwrap().history.past_len();
+    drag(&mut h, middle, middle + vec2(0.0, 80.0));
+    assert_eq!(layer(&h).1, original);
+    assert_eq!(h.state().session.active().unwrap().history.past_len(), steps + 1);
+    let first = map_handle(&h, 0.0);
+    drag(&mut h, first, first + vec2(0.0, 80.0));
+    assert_eq!(layer(&h).1, original, "keep two stops");
+    assert_eq!(h.state().session.active().unwrap().history.past_len(), steps + 1, "a refused delete makes no history");
+}
+
 #[test]
 fn gradient_map_drag_clamps_at_the_endpoints_and_reverse_keeps_stop_coordinates() {
     let mut h = app_harness("gradientMap", "rgb", 8);

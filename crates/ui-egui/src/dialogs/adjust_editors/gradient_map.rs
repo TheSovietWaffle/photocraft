@@ -90,7 +90,10 @@ fn gradient_map_strip(ui: &mut egui::Ui, stops: &mut Vec<Stop>, cx: &EditorCx, s
         ui.data_mut(|d| d.insert_temp(key, MapStopDrag { index, offset, changed: false }));
     }
     if let Some(mut drag) = ui.data(|d| d.get_temp::<MapStopDrag>(key)) {
+        // Dragged well off the strip, a stop is deleted on release (two always stay), as in Photoshop.
+        let away = resp.interact_pointer_pos().is_some_and(|pos| pos.y > outer.bottom() + 24.0 || pos.y < bar.top() - 24.0);
         if (resp.dragged() || resp.drag_stopped())
+            && !away
             && let Some(pos) = resp.interact_pointer_pos()
         {
             let location = round(loc_of(pos.x - drag.offset), 0.001);
@@ -103,6 +106,12 @@ fn gradient_map_strip(ui: &mut egui::Ui, stops: &mut Vec<Stop>, cx: &EditorCx, s
             }
         }
         if resp.drag_stopped() {
+            if away && stops.len() > 2 && drag.index < stops.len() {
+                stops.remove(drag.index);
+                *selected = drag.index.min(stops.len() - 1);
+                drag.changed = true;
+                edit.changed = true;
+            }
             edit.commit = drag.changed;
             ui.data_mut(|d| d.remove::<MapStopDrag>(key));
         } else if ui.input(|i| i.pointer.primary_down()) {
