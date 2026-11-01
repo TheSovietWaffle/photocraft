@@ -99,6 +99,33 @@ fn a_custom_limit_is_fatal_for_interactive_and_headless_imports() {
     }
 }
 
+/// #10745: an ordinary 39-layer 6144x2560 document is over the default allowance, not over one
+/// a caller raises it to, and the raised value reaches the check on every open route. Nothing
+/// is decoded: a merged image far past the default fails on its missing data, after preflight.
+#[test]
+fn a_caller_can_raise_the_limit_above_the_default() {
+    let mut layered = testgen::small(Version::Psd, Compression::Raw);
+    (layered.header.width, layered.header.height) = (6144, 2560);
+    let mut record = layered.layers()[0].clone();
+    record.rect = Rect::from_xywh(0, 0, 6144, 2560);
+    record.mask = photocraft_psd::layer::MaskData::None;
+    layered.layer_info.as_mut().unwrap().layers = vec![record; 38];
+    assert!(matches!(check(&layered, DEFAULT_PSD_IMPORT_PIXEL_BYTES), Err(IoError::PsdImportBudget { .. })));
+    assert!(check(&layered, 8 << 30).is_ok());
+
+    let mut merged = testgen::merged_only(Version::Psb, ColorMode::Rgb, 8, Compression::Zip, 2, 2);
+    (merged.header.width, merged.header.height) = (20_000, 20_000);
+    assert!(matches!(check(&merged, DEFAULT_PSD_IMPORT_PIXEL_BYTES), Err(IoError::PsdImportBudget { .. })));
+    let bytes = merged.to_bytes().unwrap();
+    let opts = crate::ImportOptions { psd_max_pixel_bytes: 64 << 30, ..Default::default() };
+    assert!(!matches!(crate::import_with_options("big.psb", &bytes, &opts), Err(IoError::PsdImportBudget { .. })));
+    let path = std::env::temp_dir().join(format!("photocraft-budget-{}.psb", std::process::id()));
+    std::fs::write(&path, &bytes).unwrap();
+    let opened = crate::import_file("big.psb", &path, &opts, &photocraft_raster::Interrupt::NONE);
+    std::fs::remove_file(&path).unwrap();
+    assert!(!matches!(opened, Err(IoError::PsdImportBudget { .. })));
+}
+
 #[test]
 fn accepted_off_canvas_pixels_and_depths_are_preserved() {
     for depth in [8, 16, 32] {

@@ -1050,6 +1050,21 @@ fn the_history_budget_is_the_stored_memory_usage_on_native() {
     assert_eq!(s.prefs().performance.history_budget_bytes(), 8192 << 20);
 }
 
+/// #10745: a PSD/PSB may estimate up to Memory Usage, never less than the import's own default,
+/// so the documents 0.18.0 opened (2.9 GB estimated there) open at the default Memory Usage.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn opening_a_psd_may_use_memory_usage() {
+    let bytes = |mb| {
+        crate::jobs::import_options(&Preferences { performance: Performance { memory_usage_mb: mb, ..Performance::default() }, ..Preferences::default() })
+            .psd_max_pixel_bytes
+    };
+    assert!(bytes(DEFAULT_MEMORY_USAGE_MB) > 2_922_004_512);
+    assert_eq!(bytes(65536), 65536 << 20);
+    assert_eq!(bytes(256), photocraft_io::DEFAULT_PSD_IMPORT_PIXEL_BYTES);
+    assert_eq!(bytes(u32::MAX), u64::from(u32::MAX) << 20);
+}
+
 /// The web build honours Memory Usage up to its cap: below and at it as stored, above it the cap.
 #[test]
 fn the_web_build_caps_memory_usage() {

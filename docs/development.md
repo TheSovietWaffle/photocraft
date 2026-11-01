@@ -659,8 +659,10 @@ before merged-image validation or decoding. The conservative estimate sums retai
 storage (including padding and negative offsets) and the largest decode/conversion workspace.
 It does not credit uniform-tile sharing or pruning, so some files that could fit after decoding
 are refused. Valid off-canvas pixels are preserved; oversized layers are rejected rather than
-clipped. Defaults are 2 GiB on native targets and 1 GiB on wasm. Applications can lower the
-allowance with `ImportOptions::psd_max_pixel_bytes`; values above the default are capped.
+clipped. Defaults are 2 GiB on native targets and 1 GiB on wasm. Applications set the allowance
+with `ImportOptions::psd_max_pixel_bytes`, above or below the default. The desktop app and the
+CLI use Memory Usage (Preferences › Performance, 8 GiB by default; the CLI has no preferences and
+uses that default), and never less than the 2 GiB default; the web build keeps its default.
 The source-only convenience API uses the default; `import_file_for_open_with` honours options.
 
 An over-budget ordinary or interactive import returns `IoError::PsdImportBudget` with the

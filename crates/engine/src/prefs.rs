@@ -576,7 +576,8 @@ fn honoured_memory_usage_mb(stored: u32, web: bool) -> u32 {
 #[serde(default, rename_all = "camelCase")]
 pub struct Performance {
     /// Memory PhotoCraft may use, in MB: bounds each document's pixels plus its History (the
-    /// oldest states are dropped beyond it), and the result of one transform.
+    /// oldest states are dropped beyond it), the result of one transform, and the pixels of a
+    /// PSD/PSB being opened.
     pub memory_usage_mb: u32,
     /// Undo steps kept per document (History panel states).
     pub history_states: u32,
@@ -637,6 +638,13 @@ impl Performance {
     /// the oldest history states are dropped.
     pub fn history_budget_bytes(&self) -> usize {
         (self.effective_memory_usage_mb() as usize).saturating_mul(1 << 20)
+    }
+
+    /// Pixel memory opening a PSD/PSB may estimate (#10745): Memory Usage, or the import's own
+    /// default if that is more. The web build keeps that default: its address space is the limit.
+    pub fn psd_import_pixel_bytes(&self) -> u64 {
+        let default = photocraft_io::DEFAULT_PSD_IMPORT_PIXEL_BYTES;
+        if cfg!(target_arch = "wasm32") { default } else { (u64::from(self.memory_usage_mb) << 20).max(default) }
     }
 }
 

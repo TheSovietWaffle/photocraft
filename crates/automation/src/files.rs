@@ -38,11 +38,13 @@ pub fn open(path: &Path) -> Result<Opened, AutomationError> {
     // convert or info of a 2 GB file does not hold the file in memory next to the document.
     #[cfg(any(unix, windows))]
     {
-        let r =
-            photocraft_io::import_file(&name, path, &photocraft_io::ImportOptions::default(), &photocraft_raster::Interrupt::NONE).map_err(|e| match e {
-                photocraft_io::IoError::Read(msg) => AutomationError::Io(msg),
-                e => e.into(),
-            })?;
+        // Headless runs have no Preferences: they get what a new install opens (#10745).
+        let psd_max_pixel_bytes = photocraft_engine::prefs::Performance::default().psd_import_pixel_bytes();
+        let opts = photocraft_io::ImportOptions { psd_max_pixel_bytes, ..Default::default() };
+        let r = photocraft_io::import_file(&name, path, &opts, &photocraft_raster::Interrupt::NONE).map_err(|e| match e {
+            photocraft_io::IoError::Read(msg) => AutomationError::Io(msg),
+            e => e.into(),
+        })?;
         Ok(Opened { document: r.document, warnings: r.warnings, source_read_only: r.source_read_only })
     }
     #[cfg(not(any(unix, windows)))]
