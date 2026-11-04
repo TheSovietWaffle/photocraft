@@ -198,6 +198,14 @@ fn a_refresh_that_submits_several_times_is_one_measurement() {
         return;
     }
     assert!(t.ms <= wall_ms * 1.25, "summed gpu time {:.1} ms exceeds the whole waited-for refresh {wall_ms:.1} ms", t.ms);
+    // The premise of the lower bound, as in the comparison above: the wait is mostly GPU
+    // execution. On a GPU that finishes this refresh in a couple of milliseconds the wait is
+    // mostly driver work the timestamps can't see (#10754: 3.2 of 7.9 ms on Strix Halo, 1.6 of
+    // 6.4 ms on an RTX 3080, with every buffer timed), so say so instead of failing.
+    if wall_ms - submit_ms < 3.0 * submit_ms {
+        eprintln!("SKIP the lower bound: this GPU finishes the refresh in {wall_ms:.1} ms against {submit_ms:.1} ms of encoding");
+        return;
+    }
     // What this bound excludes is summing only the last command buffer. A correct sum measures
     // ~85 % of the waited-for GPU time here; the flush thresholds split on accumulated work, so
     // no single buffer of the several carries much over half of it, and timing only the last
