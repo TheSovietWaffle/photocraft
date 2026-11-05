@@ -541,6 +541,29 @@ fn duplicate_artboard_lands_beside_the_original_with_its_contents() {
 }
 
 #[test]
+fn layer_via_copy_puts_an_artboard_copy_beside_it() {
+    // #11347: Ctrl+J with no selection stacked the copy on the original board.
+    let mut s = session(8);
+    let gid = board_with_square(&mut s);
+    let copy = s.execute("layer.new.layerViaCopy", json!({})).unwrap()["layer"].as_u64().unwrap();
+    assert_eq!(board_rect(&s, gid.0), Rect::new(10, 10, 50, 50), "the original stays");
+    assert_eq!(board_rect(&s, copy), Rect::new(150, 10, 190, 50));
+    assert!(red_at(&s, 155, 15) && red_at(&s, 15, 15), "both boards keep their contents");
+    // several layers selected: each board's copy goes to a free spot too
+    let b = s.execute("layer.new.artboard", json!({"rect": [10, 100, 40, 40]})).unwrap()["layer"].as_u64().unwrap();
+    s.execute("layer.select", json!({"layer": gid.0})).unwrap();
+    s.execute("layer.select", json!({"layer": b, "mode": "add"})).unwrap();
+    s.execute("layer.new.layerViaCopy", json!({})).unwrap();
+    let boards: Vec<Rect> = doc(&s).artboards().iter().map(|b| b.2.rect).collect();
+    assert_eq!(boards.len(), 5);
+    for (i, x) in boards.iter().enumerate() {
+        for y in &boards[i + 1..] {
+            assert!(x.intersect(y).is_empty(), "{x:?} overlaps {y:?}");
+        }
+    }
+}
+
+#[test]
 fn duplicating_several_artboards_places_each_copy_in_a_free_spot() {
     let mut s = session(8);
     let a = board_with_square(&mut s);
